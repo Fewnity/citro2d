@@ -313,7 +313,51 @@ static inline void C2Di_CalcLineWidths(float* widths, const C2D_Text* text, cons
 	}
 }
 
-void C2D_DrawText(const C2D_Text* text, u32 flags, float x, float y, float z, float scaleX, float scaleY, ...)
+int C2D_GetLineCount(const C2D_Text *text, float scaleX, float scaleY, float maxWidth)
+{
+	C2Di_LineInfo *lines = NULL;
+	C2Di_WordInfo *words = NULL;
+	lines = alloca(sizeof(*lines) * text->lines);
+	words = alloca(sizeof(*words) * text->words);
+	C2Di_CalcLineInfo(text, lines, words);
+	int newLineAddedCount = 0;
+	scaleX *= text->font->textScale;
+
+	// The first word will never have a wrap offset in X or Y
+	for (u32 i = 1; i < text->words; i++)
+	{
+		// If the current word was originally on a different line than the last one, only the difference between new line number and original line number should be the same
+		if (words[i - 1].start->lineNo != words[i].start->lineNo)
+		{
+			words[i].wrapXOffset = 0;
+			words[i].newLineNumber = words[i].start->lineNo + (words[i - 1].newLineNumber - words[i - 1].start->lineNo);
+		}
+		// Otherwise, if the current word goes over the width, with the previous word's offset taken into account...
+		else if (scaleX * (words[i - 1].wrapXOffset + words[i].end->xPos + words[i].end->width) > maxWidth)
+		{
+			// Then set the X offset to the negative of the original position
+			words[i].wrapXOffset = -words[i].start->xPos;
+			// And set the new line number based off the last word's
+			words[i].newLineNumber = words[i - 1].newLineNumber + 1;
+		}
+		// Otherwise both X offset and new line number should be the same as the last word's
+		else
+		{
+			words[i].wrapXOffset = words[i - 1].wrapXOffset;
+			words[i].newLineNumber = words[i - 1].newLineNumber;
+		}
+		if (newLineAddedCount < words[i].newLineNumber)
+			newLineAddedCount = words[i].newLineNumber;
+	}
+	int fixedLines = text->lines - 1;
+	if (fixedLines == 0)
+	{
+		fixedLines = 1;
+	}
+	return newLineAddedCount + 1;
+}
+
+void C2D_DrawText(const C2D_Text *text, u32 flags, float x, float y, float z, float scaleX, float scaleY, ...)
 {
 	// If there are no words, we can't do the math calculations necessary with them. Just return; nothing would be drawn anyway.
 	if (text->words == 0)

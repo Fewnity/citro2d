@@ -37,6 +37,8 @@ enum
 	C2D_WordWrap         = BIT(4), ///< Draws text with wrapping of full words before specified width. Requires a float value, passed after color if C2D_WithColor is specified.
 };
 
+int C2D_GetLineCount(const C2D_Text *text, float scaleX, float scaleY, float maxWidth);
+
 /** @brief Creates a new text buffer.
  *  @param[in] maxGlyphs Maximum number of glyphs that can be stored in the buffer.
  *  @returns Text buffer handle (or NULL on failure).
